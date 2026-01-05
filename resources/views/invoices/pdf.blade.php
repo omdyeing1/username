@@ -364,8 +364,8 @@
         
         <!-- Terms and Conditions -->
         <div class="terms">
-            @if($company && $company->terms_and_conditions)
-                {!! nl2br(e($company->terms_and_conditions)) !!}
+            @if($company && $company->terms_conditions)
+                {!! nl2br(e($company->terms_conditions)) !!}
             @else
                 <ol>
                     <li>Goods sold will not be taken back.</li>
