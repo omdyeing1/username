@@ -6,11 +6,9 @@
 <div class="page-header">
     <h1>Challan: {{ $challan->challan_number }}</h1>
     <div>
-        @if(!$challan->is_invoiced)
         <a href="{{ route('challans.edit', $challan) }}" class="btn btn-outline-primary me-2">
             <i class="bi bi-pencil me-1"></i>Edit
         </a>
-        @endif
         <a href="{{ route('challans.index') }}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i>Back
         </a>

@@ -79,10 +79,10 @@
                         <a href="{{ route('challans.show', $challan) }}" class="btn btn-sm btn-outline-info" title="View">
                             <i class="bi bi-eye"></i>
                         </a>
-                        @if(!$challan->is_invoiced)
                         <a href="{{ route('challans.edit', $challan) }}" class="btn btn-sm btn-outline-primary" title="Edit">
                             <i class="bi bi-pencil"></i>
                         </a>
+                        @if(!$challan->is_invoiced)
                         <form action="{{ route('challans.destroy', $challan) }}" method="POST" class="d-inline" 
                               onsubmit="return confirm('Are you sure you want to delete this challan?');">
                             @csrf
