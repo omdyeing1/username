@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\InvoiceRequest;
 use App\Models\Challan;
+use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\Party;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -245,7 +246,8 @@ class InvoiceController extends Controller
     public function show(Invoice $invoice)
     {
         $invoice->load(['party', 'challans.items']);
-        return view('invoices.show', compact('invoice'));
+        $company = Company::getDefault();
+        return view('invoices.show', compact('invoice', 'company'));
     }
 
     /**
@@ -283,8 +285,9 @@ class InvoiceController extends Controller
     public function downloadPdf(Invoice $invoice)
     {
         $invoice->load(['party', 'challans.items']);
+        $company = Company::getDefault();
 
-        $pdf = Pdf::loadView('invoices.pdf', compact('invoice'));
+        $pdf = Pdf::loadView('invoices.pdf', compact('invoice', 'company'));
         $pdf->setPaper('A4', 'portrait');
 
         return $pdf->download("Invoice-{$invoice->invoice_number}.pdf");
@@ -296,7 +299,8 @@ class InvoiceController extends Controller
     public function print(Invoice $invoice)
     {
         $invoice->load(['party', 'challans.items']);
-        return view('invoices.print', compact('invoice'));
+        $company = Company::getDefault();
+        return view('invoices.print', compact('invoice', 'company'));
     }
 
     /**

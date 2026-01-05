@@ -217,6 +217,9 @@
                     <a class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">
                         <i class="bi bi-speedometer2"></i>Dashboard
                     </a>
+                    <a class="nav-link {{ request()->routeIs('companies.*') ? 'active' : '' }}" href="{{ route('companies.index') }}">
+                        <i class="bi bi-building"></i>Company
+                    </a>
                     <a class="nav-link {{ request()->routeIs('parties.*') ? 'active' : '' }}" href="{{ route('parties.index') }}">
                         <i class="bi bi-people"></i>Parties
                     </a>

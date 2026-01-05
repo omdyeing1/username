@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ChallanController;
+use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\PartyController;
 use App\Http\Controllers\ProfileController;
@@ -32,6 +33,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Company Routes
+    Route::resource('companies', CompanyController::class);
 
     // Party Routes
     Route::resource('parties', PartyController::class);
