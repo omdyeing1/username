@@ -16,8 +16,8 @@ class SetCompany
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Skip company selection for company management routes and auth routes
-        if ($request->routeIs('companies.*') || $request->routeIs('login') || $request->routeIs('register') || $request->routeIs('logout')) {
+        // Skip company selection for company management routes, selection routes, and auth routes
+        if ($request->routeIs('companies.*') || $request->routeIs('companies.select*') || $request->routeIs('login') || $request->routeIs('register') || $request->routeIs('logout')) {
             return $next($request);
         }
 
