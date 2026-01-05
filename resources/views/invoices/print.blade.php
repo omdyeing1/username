@@ -113,8 +113,19 @@
     <div class="invoice-container">
         <!-- Header -->
         <div class="header">
-            <div class="company-name">YOUR COMPANY NAME</div>
-            <div class="text-muted">Address Line 1, City, State - Pincode | Phone: +91 XXXXXXXXXX</div>
+            <div class="company-name">{{ $company->name ?? 'YOUR COMPANY NAME' }}</div>
+            <div class="text-muted">
+                {{ $company->address ?? 'Company Address' }}
+                @if($company && $company->gst_number)
+                    | GST: {{ $company->gst_number }}
+                @endif
+                @if($company && $company->state_code)
+                    | State: {{ $company->state_code }}
+                @endif
+                @if($company && $company->mobile_numbers)
+                    | Phone: {{ $company->mobile_numbers }}
+                @endif
+            </div>
             <div class="invoice-title">TAX INVOICE</div>
         </div>
         
