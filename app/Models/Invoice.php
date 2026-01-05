@@ -87,21 +87,25 @@ class Invoice extends Model
         string $discountType = 'fixed',
         float $discountValue = 0
     ): array {
-        // GST calculation
-        $gstAmount = round($subtotal * ($gstPercent / 100), 2);
-        
-        // TDS calculation
-        $tdsAmount = round($subtotal * ($tdsPercent / 100), 2);
-        
-        // Discount calculation
+        // Step 1: Calculate discount first
+        $discountAmount = 0;
         if ($discountType === 'percentage') {
             $discountAmount = round($subtotal * ($discountValue / 100), 2);
         } else {
             $discountAmount = round(min($discountValue, $subtotal), 2);
         }
         
-        // Final amount = Subtotal + GST - TDS - Discount
-        $finalAmount = round($subtotal + $gstAmount - $tdsAmount - $discountAmount, 2);
+        // Step 2: Apply discount to get discounted subtotal
+        $discountedSubtotal = round($subtotal - $discountAmount, 2);
+        
+        // Step 3: Calculate GST on the discounted amount (after discount)
+        $gstAmount = round($discountedSubtotal * ($gstPercent / 100), 2);
+        
+        // Step 4: Calculate TDS on the discounted amount
+        $tdsAmount = round($discountedSubtotal * ($tdsPercent / 100), 2);
+        
+        // Step 5: Final amount = Discounted Subtotal + GST - TDS
+        $finalAmount = round($discountedSubtotal + $gstAmount - $tdsAmount, 2);
         
         return [
             'subtotal' => $subtotal,

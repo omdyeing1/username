@@ -42,6 +42,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('challans', ChallanController::class);
     Route::get('/api/parties/{party}/challans', [ChallanController::class, 'getByParty'])
         ->name('api.parties.challans');
+    Route::post('/api/challans/check-duplicate', [ChallanController::class, 'checkDuplicate'])
+        ->name('api.challans.check-duplicate');
 
     // Invoice Routes
     Route::resource('invoices', InvoiceController::class)->except(['edit', 'update']);

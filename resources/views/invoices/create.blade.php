@@ -313,25 +313,29 @@ document.addEventListener('DOMContentLoaded', function() {
         const discountType = document.getElementById('discount_type').value;
         const discountValue = parseFloat(document.getElementById('discount_value').value) || 0;
         
-        // GST
-        const gstAmount = subtotal * (gstPercent / 100);
-        document.getElementById('gstAmount').textContent = '+ ₹' + gstAmount.toFixed(2);
-        
-        // TDS
-        const tdsAmount = subtotal * (tdsPercent / 100);
-        document.getElementById('tdsAmount').textContent = '- ₹' + tdsAmount.toFixed(2);
-        
-        // Discount
+        // Step 1: Calculate discount first
         let discountAmount;
         if (discountType === 'percentage') {
             discountAmount = subtotal * (discountValue / 100);
         } else {
             discountAmount = Math.min(discountValue, subtotal);
         }
+        discountAmount = Math.round(discountAmount * 100) / 100;
         document.getElementById('discountAmount').textContent = '- ₹' + discountAmount.toFixed(2);
         
-        // Final Amount
-        const finalAmount = Math.max(0, subtotal + gstAmount - tdsAmount - discountAmount);
+        // Step 2: Apply discount to get discounted subtotal
+        const discountedSubtotal = Math.round((subtotal - discountAmount) * 100) / 100;
+        
+        // Step 3: Calculate GST on the discounted amount (after discount)
+        const gstAmount = Math.round(discountedSubtotal * (gstPercent / 100) * 100) / 100;
+        document.getElementById('gstAmount').textContent = '+ ₹' + gstAmount.toFixed(2);
+        
+        // Step 4: Calculate TDS on the discounted amount
+        const tdsAmount = Math.round(discountedSubtotal * (tdsPercent / 100) * 100) / 100;
+        document.getElementById('tdsAmount').textContent = '- ₹' + tdsAmount.toFixed(2);
+        
+        // Step 5: Final Amount = Discounted Subtotal + GST - TDS
+        const finalAmount = Math.max(0, Math.round((discountedSubtotal + gstAmount - tdsAmount) * 100) / 100);
         document.getElementById('finalAmount').textContent = '₹' + finalAmount.toFixed(2);
     }
 });

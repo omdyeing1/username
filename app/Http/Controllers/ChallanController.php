@@ -67,10 +67,15 @@ class ChallanController extends Controller
         DB::beginTransaction();
         
         try {
+            // Determine challan number - use provided or auto-generate
+            $challanNumber = !empty($request->challan_number) 
+                ? $request->challan_number 
+                : Challan::generateChallanNumber();
+            
             // Create challan
             $challan = Challan::create([
                 'party_id' => $request->party_id,
-                'challan_number' => Challan::generateChallanNumber(),
+                'challan_number' => $challanNumber,
                 'challan_date' => $request->challan_date,
                 'subtotal' => 0,
                 'is_invoiced' => false,
@@ -123,12 +128,6 @@ class ChallanController extends Controller
      */
     public function edit(Challan $challan)
     {
-        if ($challan->is_invoiced) {
-            return redirect()
-                ->route('challans.show', $challan)
-                ->with('error', 'Cannot edit a challan that has been invoiced.');
-        }
-
         $challan->load('items');
         $parties = Party::orderBy('name')->get();
         $units = ChallanItem::UNITS;
@@ -141,18 +140,18 @@ class ChallanController extends Controller
      */
     public function update(ChallanRequest $request, Challan $challan)
     {
-        if ($challan->is_invoiced) {
-            return redirect()
-                ->route('challans.show', $challan)
-                ->with('error', 'Cannot edit a challan that has been invoiced.');
-        }
-
         DB::beginTransaction();
 
         try {
+            // Determine challan number - use provided or keep existing
+            $challanNumber = !empty($request->challan_number) 
+                ? $request->challan_number 
+                : $challan->challan_number;
+            
             // Update challan details
             $challan->update([
                 'party_id' => $request->party_id,
+                'challan_number' => $challanNumber,
                 'challan_date' => $request->challan_date,
             ]);
 
@@ -249,6 +248,31 @@ class ChallanController extends Controller
                 'gst_number' => $party->gst_number,
             ],
             'challans' => $challans,
+        ]);
+    }
+
+    /**
+     * Check if a challan number already exists (AJAX endpoint).
+     */
+    public function checkDuplicate(Request $request)
+    {
+        $request->validate([
+            'challan_number' => ['required', 'string'],
+            'challan_id' => ['nullable', 'exists:challans,id'],
+        ]);
+
+        $query = Challan::where('challan_number', $request->challan_number);
+        
+        // Exclude current challan if editing
+        if ($request->challan_id) {
+            $query->where('id', '!=', $request->challan_id);
+        }
+
+        $exists = $query->exists();
+
+        return response()->json([
+            'exists' => $exists,
+            'message' => $exists ? 'This challan number already exists.' : '',
         ]);
     }
 }

@@ -39,9 +39,14 @@
                 
                 <div class="col-md-4 mb-3">
                     <label for="challan_number" class="form-label">Challan Number</label>
-                    <input type="text" class="form-control" id="challan_number" 
-                           value="{{ $challanNumber }}" readonly disabled>
-                    <div class="form-text">Auto-generated</div>
+                    <input type="text" class="form-control @error('challan_number') is-invalid @enderror" 
+                           id="challan_number" name="challan_number" 
+                           value="{{ old('challan_number', $challanNumber) }}">
+                    <div id="challan_number_error" class="text-danger" style="display: none;"></div>
+                    @error('challan_number')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                    <div class="form-text">Leave blank for auto-generation</div>
                 </div>
                 
                 <div class="col-md-4 mb-3">
@@ -176,6 +181,50 @@ document.addEventListener('DOMContentLoaded', function() {
     if (partySelect.value) {
         partySelect.dispatchEvent(new Event('change'));
     }
+    
+    // Challan number duplicate validation
+    const challanNumberInput = document.getElementById('challan_number');
+    const challanNumberError = document.getElementById('challan_number_error');
+    let duplicateCheckTimeout;
+    
+    challanNumberInput.addEventListener('input', function() {
+        const challanNumber = this.value.trim();
+        
+        // Clear previous timeout
+        clearTimeout(duplicateCheckTimeout);
+        
+        // Hide error message
+        challanNumberError.style.display = 'none';
+        this.classList.remove('is-invalid');
+        
+        // Only check if value is not empty
+        if (challanNumber.length > 0) {
+            // Debounce the AJAX call
+            duplicateCheckTimeout = setTimeout(function() {
+                fetch('{{ route("api.challans.check-duplicate") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({
+                        challan_number: challanNumber
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.exists) {
+                        challanNumberError.textContent = data.message;
+                        challanNumberError.style.display = 'block';
+                        challanNumberInput.classList.add('is-invalid');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking duplicate:', error);
+                });
+            }, 500); // Wait 500ms after user stops typing
+        }
+    });
     
     // Add new item row
     addItemBtn.addEventListener('click', function() {

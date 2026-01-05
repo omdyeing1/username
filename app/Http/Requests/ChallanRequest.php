@@ -19,8 +19,16 @@ class ChallanRequest extends FormRequest
      */
     public function rules(): array
     {
+        $challanId = $this->route('challan') ? $this->route('challan')->id : null;
+        
         return [
             'party_id' => ['required', 'exists:parties,id'],
+            'challan_number' => [
+                'nullable',
+                'string',
+                'max:50',
+                'unique:challans,challan_number,' . $challanId,
+            ],
             'challan_date' => ['required', 'date'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.description' => ['required', 'string', 'max:500'],
@@ -38,6 +46,7 @@ class ChallanRequest extends FormRequest
         return [
             'party_id.required' => 'Please select a party.',
             'party_id.exists' => 'Selected party is invalid.',
+            'challan_number.unique' => 'This challan number already exists.',
             'challan_date.required' => 'Challan date is required.',
             'challan_date.date' => 'Please enter a valid date.',
             'items.required' => 'At least one item is required.',
