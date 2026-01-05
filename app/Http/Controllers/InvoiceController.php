@@ -62,16 +62,15 @@ class InvoiceController extends Controller
         DB::beginTransaction();
 
         try {
-            // Validate that selected challans belong to the party and are not invoiced
+            // Validate that selected challans belong to the party (allow both invoiced and non-invoiced)
             $challans = Challan::whereIn('id', $request->challan_ids)
                 ->where('party_id', $request->party_id)
-                ->where('is_invoiced', false)
                 ->get();
 
             if ($challans->count() !== count($request->challan_ids)) {
                 return back()
                     ->withInput()
-                    ->with('error', 'One or more selected challans are invalid or already invoiced.');
+                    ->with('error', 'One or more selected challans are invalid.');
             }
 
             // Calculate subtotal from challans (server-side)
@@ -196,9 +195,8 @@ class InvoiceController extends Controller
             'discount_value' => 'nullable|numeric|min:0',
         ]);
 
-        // Get challans and calculate subtotal
+        // Get challans and calculate subtotal (allow both invoiced and non-invoiced)
         $challans = Challan::whereIn('id', $request->challan_ids)
-            ->where('is_invoiced', false)
             ->get();
 
         $subtotal = $challans->sum('subtotal');

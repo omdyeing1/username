@@ -81,7 +81,7 @@
                     
                     <div id="noChallans" class="text-center py-4 text-muted" style="display: none;">
                         <i class="bi bi-file-x display-4 d-block mb-2"></i>
-                        No pending challans found for this party
+                        No challans found for this party
                     </div>
                     
                     <div id="challansContainer" style="display: none;">
@@ -156,8 +156,9 @@
                             <label class="form-label">Discount</label>
                             <div class="input-group">
                                 <select class="form-select calc-input" name="discount_type" id="discount_type" style="max-width: 120px;">
-                                    <option value="fixed" {{ old('discount_type') == 'fixed' ? 'selected' : '' }}>Fixed ₹</option>
                                     <option value="percentage" {{ old('discount_type') == 'percentage' ? 'selected' : '' }}>Percent %</option>
+                                    <option value="fixed" {{ old('discount_type') == 'fixed' ? 'selected' : '' }}>Fixed ₹</option>
+                                
                                 </select>
                                 <input type="number" step="0.01" min="0" class="form-control calc-input" 
                                        id="discount_value" name="discount_value" value="{{ old('discount_value', 0) }}">
@@ -247,13 +248,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 challansBody.innerHTML = '';
                 data.challans.forEach(challan => {
                     const row = document.createElement('tr');
+                    const statusBadge = challan.is_invoiced 
+                        ? '<span class="badge bg-success ms-2">Invoiced</span>' 
+                        : '<span class="badge bg-warning text-dark ms-2">Pending</span>';
                     row.innerHTML = `
                         <td>
                             <input type="checkbox" class="form-check-input challan-check" 
                                    name="challan_ids[]" value="${challan.id}" 
                                    data-subtotal="${challan.subtotal_raw}">
                         </td>
-                        <td><strong>${challan.challan_number}</strong></td>
+                        <td><strong>${challan.challan_number}</strong>${statusBadge}</td>
                         <td>${challan.challan_date}</td>
                         <td>${challan.items_count} items</td>
                         <td class="text-end">₹${challan.subtotal}</td>

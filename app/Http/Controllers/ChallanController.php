@@ -215,7 +215,6 @@ class ChallanController extends Controller
     public function getByParty(Party $party)
     {
         $challans = $party->challans()
-            ->where('is_invoiced', false)
             ->with('items')
             ->orderBy('challan_date', 'desc')
             ->get()
@@ -227,6 +226,7 @@ class ChallanController extends Controller
                     'subtotal' => number_format($challan->subtotal, 2),
                     'subtotal_raw' => $challan->subtotal,
                     'items_count' => $challan->items->count(),
+                    'is_invoiced' => $challan->is_invoiced,
                     'items' => $challan->items->map(function ($item) {
                         return [
                             'description' => $item->description,

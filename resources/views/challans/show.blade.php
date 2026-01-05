@@ -93,7 +93,6 @@
             </div>
         </div>
         
-        @if(!$challan->is_invoiced)
         <div class="card mt-4">
             <div class="card-body text-center">
                 <p class="mb-3">Ready to create an invoice?</p>
@@ -102,7 +101,6 @@
                 </a>
             </div>
         </div>
-        @endif
     </div>
 </div>
 @endsection
