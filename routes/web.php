@@ -46,7 +46,7 @@ Route::middleware('auth')->group(function () {
         ->name('api.challans.check-duplicate');
 
     // Invoice Routes
-    Route::resource('invoices', InvoiceController::class)->except(['edit', 'update']);
+    Route::resource('invoices', InvoiceController::class);
     Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'downloadPdf'])
         ->name('invoices.pdf');
     Route::get('/invoices/{invoice}/print', [InvoiceController::class, 'print'])

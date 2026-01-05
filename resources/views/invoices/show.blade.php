@@ -6,6 +6,9 @@
 <div class="page-header">
     <h1>Invoice: {{ $invoice->invoice_number }}</h1>
     <div>
+        <a href="{{ route('invoices.edit', $invoice) }}" class="btn btn-primary me-2">
+            <i class="bi bi-pencil me-1"></i>Edit
+        </a>
         <a href="{{ route('invoices.pdf', $invoice) }}" class="btn btn-danger me-2">
             <i class="bi bi-file-pdf me-1"></i>Download PDF
         </a>
