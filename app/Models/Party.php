@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Party extends Model
@@ -14,6 +15,7 @@ class Party extends Model
      * The attributes that are mass assignable.
      */
     protected $fillable = [
+        'company_id',
         'name',
         'address',
         'contact_number',
@@ -42,5 +44,13 @@ class Party extends Model
     public function uninvoicedChallans(): HasMany
     {
         return $this->hasMany(Challan::class)->where('is_invoiced', false);
+    }
+
+    /**
+     * Get the company that owns the party.
+     */
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
     }
 }

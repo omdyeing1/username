@@ -87,7 +87,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse(\App\Models\Challan::with('party')->latest()->limit(5)->get() as $challan)
+                        @forelse(\App\Models\Challan::with('party')->where('company_id', $currentCompany->id ?? 0)->latest()->limit(5)->get() as $challan)
                         <tr>
                             <td><a href="{{ route('challans.show', $challan) }}">{{ $challan->challan_number }}</a></td>
                             <td>{{ $challan->party->name }}</td>
@@ -126,7 +126,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse(\App\Models\Invoice::with('party')->latest()->limit(5)->get() as $invoice)
+                        @forelse(\App\Models\Invoice::with('party')->where('company_id', $currentCompany->id ?? 0)->latest()->limit(5)->get() as $invoice)
                         <tr>
                             <td><a href="{{ route('invoices.show', $invoice) }}">{{ $invoice->invoice_number }}</a></td>
                             <td>{{ $invoice->party->name }}</td>

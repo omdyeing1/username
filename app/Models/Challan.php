@@ -16,6 +16,7 @@ class Challan extends Model
      * The attributes that are mass assignable.
      */
     protected $fillable = [
+        'company_id',
         'party_id',
         'challan_number',
         'challan_date',
@@ -31,6 +32,14 @@ class Challan extends Model
         'subtotal' => 'decimal:2',
         'is_invoiced' => 'boolean',
     ];
+
+    /**
+     * Get the company that owns the challan.
+     */
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
+    }
 
     /**
      * Get the party that owns the challan.
@@ -70,13 +79,17 @@ class Challan extends Model
     /**
      * Generate a unique challan number.
      */
-    public static function generateChallanNumber(): string
+    public static function generateChallanNumber(?int $companyId = null): string
     {
         $prefix = 'CH';
         $year = date('Y');
-        $lastChallan = static::whereYear('created_at', $year)
-                            ->orderBy('id', 'desc')
-                            ->first();
+        $query = static::whereYear('created_at', $year);
+        
+        if ($companyId) {
+            $query->where('company_id', $companyId);
+        }
+        
+        $lastChallan = $query->orderBy('id', 'desc')->first();
         
         if ($lastChallan) {
             // Extract the number from the last challan

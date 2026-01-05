@@ -18,7 +18,8 @@ class InvoiceController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Invoice::with('party');
+        $companyId = $this->getCompanyId();
+        $query = Invoice::with('party')->where('company_id', $companyId);
 
         // Filter by party
         if ($request->filled('party_id')) {
@@ -39,7 +40,7 @@ class InvoiceController extends Controller
         }
 
         $invoices = $query->orderBy('invoice_date', 'desc')->paginate(15);
-        $parties = Party::orderBy('name')->get();
+        $parties = Party::where('company_id', $companyId)->orderBy('name')->get();
 
         return view('invoices.index', compact('invoices', 'parties'));
     }
@@ -49,8 +50,9 @@ class InvoiceController extends Controller
      */
     public function create()
     {
-        $parties = Party::orderBy('name')->get();
-        $invoiceNumber = Invoice::generateInvoiceNumber();
+        $companyId = $this->getCompanyId();
+        $parties = Party::where('company_id', $companyId)->orderBy('name')->get();
+        $invoiceNumber = Invoice::generateInvoiceNumber($companyId);
 
         return view('invoices.create', compact('parties', 'invoiceNumber'));
     }
@@ -63,9 +65,11 @@ class InvoiceController extends Controller
         DB::beginTransaction();
 
         try {
-            // Validate that selected challans belong to the party (allow both invoiced and non-invoiced)
+            $companyId = $this->getCompanyId();
+            // Validate that selected challans belong to the party and company (allow both invoiced and non-invoiced)
             $challans = Challan::whereIn('id', $request->challan_ids)
                 ->where('party_id', $request->party_id)
+                ->where('company_id', $companyId)
                 ->get();
 
             if ($challans->count() !== count($request->challan_ids)) {
@@ -112,8 +116,9 @@ class InvoiceController extends Controller
 
             // Create invoice
             $invoice = Invoice::create([
+                'company_id' => $companyId,
                 'party_id' => $request->party_id,
-                'invoice_number' => Invoice::generateInvoiceNumber(),
+                'invoice_number' => Invoice::generateInvoiceNumber($companyId),
                 'invoice_date' => $request->invoice_date,
                 'subtotal' => $amounts['subtotal'],
                 'gst_percent' => $request->gst_percent ?? 0,
@@ -152,8 +157,12 @@ class InvoiceController extends Controller
      */
     public function edit(Invoice $invoice)
     {
+        // Ensure invoice belongs to current company
+        if ($invoice->company_id != $this->getCompanyId()) {
+            abort(404);
+        }
         $invoice->load(['party', 'challans']);
-        $parties = Party::orderBy('name')->get();
+        $parties = Party::where('company_id', $this->getCompanyId())->orderBy('name')->get();
         
         return view('invoices.edit', compact('invoice', 'parties'));
     }
@@ -166,9 +175,15 @@ class InvoiceController extends Controller
         DB::beginTransaction();
 
         try {
-            // Validate that selected challans belong to the party
+            $companyId = $this->getCompanyId();
+            // Ensure invoice belongs to current company
+            if ($invoice->company_id != $companyId) {
+                abort(404);
+            }
+            // Validate that selected challans belong to the party and company
             $challans = Challan::whereIn('id', $request->challan_ids)
                 ->where('party_id', $request->party_id)
+                ->where('company_id', $companyId)
                 ->get();
 
             if ($challans->count() !== count($request->challan_ids)) {
@@ -245,8 +260,12 @@ class InvoiceController extends Controller
      */
     public function show(Invoice $invoice)
     {
+        // Ensure invoice belongs to current company
+        if ($invoice->company_id != $this->getCompanyId()) {
+            abort(404);
+        }
         $invoice->load(['party', 'challans.items']);
-        $company = Company::getDefault();
+        $company = $invoice->company;
         return view('invoices.show', compact('invoice', 'company'));
     }
 
@@ -255,6 +274,11 @@ class InvoiceController extends Controller
      */
     public function destroy(Invoice $invoice)
     {
+        // Ensure invoice belongs to current company
+        if ($invoice->company_id != $this->getCompanyId()) {
+            abort(404);
+        }
+
         DB::beginTransaction();
 
         try {
@@ -284,8 +308,12 @@ class InvoiceController extends Controller
      */
     public function downloadPdf(Invoice $invoice)
     {
-        $invoice->load(['party', 'challans.items']);
-        $company = Company::getDefault();
+        // Ensure invoice belongs to current company
+        if ($invoice->company_id != $this->getCompanyId()) {
+            abort(404);
+        }
+        $invoice->load(['party', 'challans.items', 'company']);
+        $company = $invoice->company;
 
         $pdf = Pdf::loadView('invoices.pdf', compact('invoice', 'company'));
         $pdf->setPaper('A4', 'portrait');
@@ -298,8 +326,12 @@ class InvoiceController extends Controller
      */
     public function print(Invoice $invoice)
     {
-        $invoice->load(['party', 'challans.items']);
-        $company = Company::getDefault();
+        // Ensure invoice belongs to current company
+        if ($invoice->company_id != $this->getCompanyId()) {
+            abort(404);
+        }
+        $invoice->load(['party', 'challans.items', 'company']);
+        $company = $invoice->company;
         return view('invoices.print', compact('invoice', 'company'));
     }
 
@@ -318,6 +350,7 @@ class InvoiceController extends Controller
 
         // Get challans and calculate subtotal (allow both invoiced and non-invoiced)
         $challans = Challan::whereIn('id', $request->challan_ids)
+            ->where('company_id', $this->getCompanyId())
             ->get();
 
         $subtotal = $challans->sum('subtotal');

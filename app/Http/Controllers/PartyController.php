@@ -43,7 +43,9 @@ class PartyController extends Controller
      */
     public function store(PartyRequest $request)
     {
-        Party::create($request->validated());
+        $data = $request->validated();
+        $data['company_id'] = $this->getCompanyId();
+        Party::create($data);
 
         return redirect()
             ->route('parties.index')
@@ -55,6 +57,11 @@ class PartyController extends Controller
      */
     public function show(Party $party)
     {
+        // Ensure party belongs to current company
+        if ($party->company_id != $this->getCompanyId()) {
+            abort(404);
+        }
+
         $party->load(['challans' => function ($query) {
             $query->latest('challan_date')->limit(10);
         }, 'invoices' => function ($query) {
@@ -69,6 +76,10 @@ class PartyController extends Controller
      */
     public function edit(Party $party)
     {
+        // Ensure party belongs to current company
+        if ($party->company_id != $this->getCompanyId()) {
+            abort(404);
+        }
         return view('parties.edit', compact('party'));
     }
 
@@ -77,6 +88,10 @@ class PartyController extends Controller
      */
     public function update(PartyRequest $request, Party $party)
     {
+        // Ensure party belongs to current company
+        if ($party->company_id != $this->getCompanyId()) {
+            abort(404);
+        }
         $party->update($request->validated());
 
         return redirect()
@@ -89,6 +104,11 @@ class PartyController extends Controller
      */
     public function destroy(Party $party)
     {
+        // Ensure party belongs to current company
+        if ($party->company_id != $this->getCompanyId()) {
+            abort(404);
+        }
+
         // Check if party has any challans or invoices
         if ($party->challans()->exists() || $party->invoices()->exists()) {
             return redirect()
@@ -108,6 +128,11 @@ class PartyController extends Controller
      */
     public function getDetails(Party $party)
     {
+        // Ensure party belongs to current company
+        if ($party->company_id != $this->getCompanyId()) {
+            abort(404);
+        }
+
         return response()->json([
             'id' => $party->id,
             'name' => $party->name,

@@ -15,6 +15,7 @@ class Invoice extends Model
      * The attributes that are mass assignable.
      */
     protected $fillable = [
+        'company_id',
         'party_id',
         'invoice_number',
         'invoice_date',
@@ -52,6 +53,14 @@ class Invoice extends Model
         'fixed' => 'Fixed Amount',
         'percentage' => 'Percentage',
     ];
+
+    /**
+     * Get the company that owns the invoice.
+     */
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
+    }
 
     /**
      * Get the party that owns the invoice.
@@ -119,13 +128,17 @@ class Invoice extends Model
     /**
      * Generate a unique invoice number.
      */
-    public static function generateInvoiceNumber(): string
+    public static function generateInvoiceNumber(?int $companyId = null): string
     {
         $prefix = 'INV';
         $year = date('Y');
-        $lastInvoice = static::whereYear('created_at', $year)
-                            ->orderBy('id', 'desc')
-                            ->first();
+        $query = static::whereYear('created_at', $year);
+        
+        if ($companyId) {
+            $query->where('company_id', $companyId);
+        }
+        
+        $lastInvoice = $query->orderBy('id', 'desc')->first();
         
         if ($lastInvoice) {
             $lastNumber = (int) substr($lastInvoice->invoice_number, -6);

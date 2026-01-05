@@ -16,7 +16,8 @@ class ChallanController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Challan::with('party');
+        $companyId = $this->getCompanyId();
+        $query = Challan::with('party')->where('company_id', $companyId);
 
         // Filter by party
         if ($request->filled('party_id')) {
@@ -42,7 +43,7 @@ class ChallanController extends Controller
         }
 
         $challans = $query->orderBy('challan_date', 'desc')->paginate(15);
-        $parties = Party::orderBy('name')->get();
+        $parties = Party::where('company_id', $companyId)->orderBy('name')->get();
 
         return view('challans.index', compact('challans', 'parties'));
     }
@@ -52,9 +53,10 @@ class ChallanController extends Controller
      */
     public function create()
     {
-        $parties = Party::orderBy('name')->get();
+        $companyId = $this->getCompanyId();
+        $parties = Party::where('company_id', $companyId)->orderBy('name')->get();
         $units = ChallanItem::UNITS;
-        $challanNumber = Challan::generateChallanNumber();
+        $challanNumber = Challan::generateChallanNumber($companyId);
 
         return view('challans.create', compact('parties', 'units', 'challanNumber'));
     }
@@ -74,6 +76,7 @@ class ChallanController extends Controller
             
             // Create challan
             $challan = Challan::create([
+                'company_id' => $this->getCompanyId(),
                 'party_id' => $request->party_id,
                 'challan_number' => $challanNumber,
                 'challan_date' => $request->challan_date,
@@ -119,6 +122,10 @@ class ChallanController extends Controller
      */
     public function show(Challan $challan)
     {
+        // Ensure challan belongs to current company
+        if ($challan->company_id != $this->getCompanyId()) {
+            abort(404);
+        }
         $challan->load(['party', 'items']);
         return view('challans.show', compact('challan'));
     }
@@ -128,8 +135,12 @@ class ChallanController extends Controller
      */
     public function edit(Challan $challan)
     {
+        // Ensure challan belongs to current company
+        if ($challan->company_id != $this->getCompanyId()) {
+            abort(404);
+        }
         $challan->load('items');
-        $parties = Party::orderBy('name')->get();
+        $parties = Party::where('company_id', $this->getCompanyId())->orderBy('name')->get();
         $units = ChallanItem::UNITS;
 
         return view('challans.edit', compact('challan', 'parties', 'units'));
@@ -140,6 +151,11 @@ class ChallanController extends Controller
      */
     public function update(ChallanRequest $request, Challan $challan)
     {
+        // Ensure challan belongs to current company
+        if ($challan->company_id != $this->getCompanyId()) {
+            abort(404);
+        }
+
         DB::beginTransaction();
 
         try {
@@ -196,6 +212,11 @@ class ChallanController extends Controller
      */
     public function destroy(Challan $challan)
     {
+        // Ensure challan belongs to current company
+        if ($challan->company_id != $this->getCompanyId()) {
+            abort(404);
+        }
+
         if ($challan->is_invoiced) {
             return redirect()
                 ->route('challans.index')
@@ -214,7 +235,13 @@ class ChallanController extends Controller
      */
     public function getByParty(Party $party)
     {
+        // Ensure party belongs to current company
+        if ($party->company_id != $this->getCompanyId()) {
+            abort(404);
+        }
+
         $challans = $party->challans()
+            ->where('company_id', $this->getCompanyId())
             ->with('items')
             ->orderBy('challan_date', 'desc')
             ->get()
@@ -261,7 +288,8 @@ class ChallanController extends Controller
             'challan_id' => ['nullable', 'exists:challans,id'],
         ]);
 
-        $query = Challan::where('challan_number', $request->challan_number);
+        $query = Challan::where('challan_number', $request->challan_number)
+            ->where('company_id', $this->getCompanyId());
         
         // Exclude current challan if editing
         if ($request->challan_id) {
