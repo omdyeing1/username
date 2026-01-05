@@ -1,0 +1,255 @@
+@extends('layouts.main')
+
+@section('title', 'Create Challan')
+
+@section('content')
+<div class="page-header">
+    <h1>Create Challan</h1>
+    <a href="{{ route('challans.index') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back to List
+    </a>
+</div>
+
+<form action="{{ route('challans.store') }}" method="POST" id="challanForm">
+    @csrf
+    
+    <div class="card mb-4">
+        <div class="card-header">Challan Details</div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label for="party_id" class="form-label">Party <span class="text-danger">*</span></label>
+                    <select class="form-select @error('party_id') is-invalid @enderror" 
+                            id="party_id" name="party_id" required>
+                        <option value="">Select Party</option>
+                        @foreach($parties as $party)
+                            <option value="{{ $party->id }}" 
+                                    data-address="{{ $party->address }}"
+                                    data-contact="{{ $party->contact_number }}"
+                                    data-gst="{{ $party->gst_number }}"
+                                    {{ old('party_id') == $party->id ? 'selected' : '' }}>
+                                {{ $party->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('party_id')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <label for="challan_number" class="form-label">Challan Number</label>
+                    <input type="text" class="form-control" id="challan_number" 
+                           value="{{ $challanNumber }}" readonly disabled>
+                    <div class="form-text">Auto-generated</div>
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <label for="challan_date" class="form-label">Challan Date <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control @error('challan_date') is-invalid @enderror" 
+                           id="challan_date" name="challan_date" 
+                           value="{{ old('challan_date', date('Y-m-d')) }}" required>
+                    @error('challan_date')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+            </div>
+            
+            <!-- Party Details (Auto-filled) -->
+            <div id="partyDetails" class="row mt-2" style="display: none;">
+                <div class="col-md-4">
+                    <small class="text-muted">Address:</small>
+                    <p class="mb-0" id="partyAddress"></p>
+                </div>
+                <div class="col-md-4">
+                    <small class="text-muted">Contact:</small>
+                    <p class="mb-0" id="partyContact"></p>
+                </div>
+                <div class="col-md-4">
+                    <small class="text-muted">GST:</small>
+                    <p class="mb-0" id="partyGst"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Items</span>
+            <button type="button" class="btn btn-sm btn-success" id="addItemBtn">
+                <i class="bi bi-plus-lg me-1"></i>Add Item
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <table class="table mb-0" id="itemsTable">
+                <thead>
+                    <tr>
+                        <th width="40%">Description <span class="text-danger">*</span></th>
+                        <th width="12%">Quantity <span class="text-danger">*</span></th>
+                        <th width="12%">Unit</th>
+                        <th width="15%">Rate <span class="text-danger">*</span></th>
+                        <th width="15%">Amount</th>
+                        <th width="6%"></th>
+                    </tr>
+                </thead>
+                <tbody id="itemsBody">
+                    <tr class="item-row">
+                        <td>
+                            <input type="text" class="form-control form-control-sm" name="items[0][description]" required>
+                        </td>
+                        <td>
+                            <input type="number" step="0.001" min="0.001" class="form-control form-control-sm item-qty" 
+                                   name="items[0][quantity]" required>
+                        </td>
+                        <td>
+                            <select class="form-select form-select-sm" name="items[0][unit]">
+                                @foreach($units as $key => $label)
+                                    <option value="{{ $key }}">{{ $key }}</option>
+                                @endforeach
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" step="0.01" min="0.01" class="form-control form-control-sm item-rate" 
+                                   name="items[0][rate]" required>
+                        </td>
+                        <td>
+                            <input type="text" class="form-control form-control-sm item-amount" readonly disabled>
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-item" disabled>
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr class="table-light">
+                        <td colspan="4" class="text-end"><strong>Subtotal:</strong></td>
+                        <td><strong id="subtotal">₹0.00</strong></td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    
+    @if($errors->has('items'))
+        <div class="alert alert-danger">{{ $errors->first('items') }}</div>
+    @endif
+    
+    <div class="d-flex justify-content-end gap-2">
+        <a href="{{ route('challans.index') }}" class="btn btn-outline-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg me-1"></i>Create Challan
+        </button>
+    </div>
+</form>
+@endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const itemsBody = document.getElementById('itemsBody');
+    const addItemBtn = document.getElementById('addItemBtn');
+    const partySelect = document.getElementById('party_id');
+    let itemIndex = 1;
+    
+    // Unit options HTML
+    const unitOptions = `@foreach($units as $key => $label)<option value="{{ $key }}">{{ $key }}</option>@endforeach`;
+    
+    // Party selection - auto-fill details
+    partySelect.addEventListener('change', function() {
+        const selected = this.options[this.selectedIndex];
+        const detailsDiv = document.getElementById('partyDetails');
+        
+        if (this.value) {
+            document.getElementById('partyAddress').textContent = selected.dataset.address || '-';
+            document.getElementById('partyContact').textContent = selected.dataset.contact || '-';
+            document.getElementById('partyGst').textContent = selected.dataset.gst || '-';
+            detailsDiv.style.display = 'flex';
+        } else {
+            detailsDiv.style.display = 'none';
+        }
+    });
+    
+    // Trigger on load if party already selected
+    if (partySelect.value) {
+        partySelect.dispatchEvent(new Event('change'));
+    }
+    
+    // Add new item row
+    addItemBtn.addEventListener('click', function() {
+        const newRow = document.createElement('tr');
+        newRow.className = 'item-row';
+        newRow.innerHTML = `
+            <td>
+                <input type="text" class="form-control form-control-sm" name="items[${itemIndex}][description]" required>
+            </td>
+            <td>
+                <input type="number" step="0.001" min="0.001" class="form-control form-control-sm item-qty" 
+                       name="items[${itemIndex}][quantity]" required>
+            </td>
+            <td>
+                <select class="form-select form-select-sm" name="items[${itemIndex}][unit]">
+                    ${unitOptions}
+                </select>
+            </td>
+            <td>
+                <input type="number" step="0.01" min="0.01" class="form-control form-control-sm item-rate" 
+                       name="items[${itemIndex}][rate]" required>
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm item-amount" readonly disabled>
+            </td>
+            <td>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-item">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        `;
+        itemsBody.appendChild(newRow);
+        itemIndex++;
+        updateRemoveButtons();
+    });
+    
+    // Remove item row
+    itemsBody.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-item')) {
+            e.target.closest('.item-row').remove();
+            calculateSubtotal();
+            updateRemoveButtons();
+        }
+    });
+    
+    // Calculate amount on quantity/rate change
+    itemsBody.addEventListener('input', function(e) {
+        if (e.target.classList.contains('item-qty') || e.target.classList.contains('item-rate')) {
+            const row = e.target.closest('.item-row');
+            const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+            const rate = parseFloat(row.querySelector('.item-rate').value) || 0;
+            const amount = qty * rate;
+            row.querySelector('.item-amount').value = '₹' + amount.toFixed(2);
+            calculateSubtotal();
+        }
+    });
+    
+    function calculateSubtotal() {
+        let total = 0;
+        document.querySelectorAll('.item-row').forEach(function(row) {
+            const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+            const rate = parseFloat(row.querySelector('.item-rate').value) || 0;
+            total += qty * rate;
+        });
+        document.getElementById('subtotal').textContent = '₹' + total.toFixed(2);
+    }
+    
+    function updateRemoveButtons() {
+        const rows = document.querySelectorAll('.item-row');
+        rows.forEach(function(row, index) {
+            const btn = row.querySelector('.remove-item');
+            btn.disabled = rows.length === 1;
+        });
+    }
+});
+</script>
+@endpush
