@@ -21,18 +21,17 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="party_id" class="form-label">Party <span class="text-danger">*</span></label>
-                            <select class="form-select @error('party_id') is-invalid @enderror" 
-                                    id="party_id" name="party_id" required>
-                                <option value="">Select Party</option>
-                                @foreach($parties as $party)
-                                    <option value="{{ $party->id }}" {{ request('party_id') == $party->id ? 'selected' : '' }}>
-                                        {{ $party->name }}
-                                    </option>
-                                @endforeach
-                            </select>
+                            <label for="party_search" class="form-label">Party <span class="text-danger">*</span></label>
+                            <div class="position-relative">
+                                <input type="text" class="form-control" id="party_search" 
+                                       placeholder="Type to search party..." autocomplete="off">
+                                <input type="hidden" name="party_id" id="party_id" value="{{ old('party_id', request('party_id')) }}">
+                                <div id="party_suggestions" class="list-group position-absolute w-100 shadow" 
+                                     style="z-index: 1000; display: none; max-height: 200px; overflow-y: auto;">
+                                </div>
+                            </div>
                             @error('party_id')
-                                <div class="invalid-feedback">{{ $message }}</div>
+                                <div class="text-danger mt-1">{{ $message }}</div>
                             @enderror
                         </div>
                         <div class="col-md-3 mb-3">
@@ -109,7 +108,8 @@
             <div class="card mb-4">
                 <div class="card-header">Notes (Optional)</div>
                 <div class="card-body">
-                    <textarea class="form-control" name="notes" rows="2" placeholder="Additional notes...">{{ old('notes') }}</textarea>
+                    <textarea class="form-control enable-autocomplete" name="notes" rows="2" 
+                              placeholder="Additional notes..." data-type="invoice_notes" autocomplete="off">{{ old('notes') }}</textarea>
                 </div>
             </div>
         </div>
@@ -182,6 +182,8 @@
         </div>
     </div>
 </form>
+@include('partials.party-search-script')
+@include('partials.autocomplete_script')
 @endsection
 
 @push('scripts')

@@ -21,7 +21,49 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
+        'company_id',
+        'payment_mode',
+        'trip_rate',
+        'pcs_rate',
+        'fixed_salary', // Added
+        'is_blocked',
     ];
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    public function trips()
+    {
+        return $this->hasMany(Trip::class);
+    }
+    
+    public function upaads()
+    {
+        return $this->hasMany(Upaad::class);
+    }
+
+    public function monthlySalaries()
+    {
+        return $this->hasMany(MonthlySalary::class);
+    }
+
+    public function hasRole($role)
+    {
+        return $this->role === $role;
+    }
+
+    public function isDriver()
+    {
+        return $this->hasRole('driver');
+    }
+
+    public function isAdmin()
+    {
+        return $this->hasRole('admin');
+    }
 
     /**
      * The attributes that should be hidden for serialization.

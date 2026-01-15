@@ -25,15 +25,22 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <input type="date" name="from_date" class="form-control" value="{{ request('from_date') }}">
+                <input type="date" name="from_date" class="form-control" value="{{ request('from_date') }}" placeholder="From">
             </div>
             <div class="col-md-2">
-                <input type="date" name="to_date" class="form-control" value="{{ request('to_date') }}">
+                <input type="date" name="to_date" class="form-control" value="{{ request('to_date') }}" placeholder="To">
+            </div>
+            <div class="col-md-3">
+                <div class="input-group">
+                    <input type="number" name="min_amount" class="form-control" placeholder="Min" value="{{ request('min_amount') }}">
+                    <span class="input-group-text">-</span>
+                    <input type="number" name="max_amount" class="form-control" placeholder="Max" value="{{ request('max_amount') }}">
+                </div>
             </div>
             <div class="col-md-2">
                 <input type="text" name="search" class="form-control" placeholder="Invoice No." value="{{ request('search') }}">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-12 text-end">
                 <button type="submit" class="btn btn-primary me-2"><i class="bi bi-filter me-1"></i>Filter</button>
                 <a href="{{ route('invoices.index') }}" class="btn btn-outline-secondary">Reset</a>
             </div>
@@ -53,7 +60,7 @@
                     <th class="text-end">Subtotal</th>
                     <th class="text-end">GST</th>
                     <th class="text-end">Final Amount</th>
-                    <th width="150">Actions</th>
+                    <th class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -66,15 +73,26 @@
                     <td class="text-end">₹{{ number_format($invoice->gst_amount, 2) }}</td>
                     <td class="text-end"><strong class="text-primary">₹{{ number_format($invoice->final_amount, 2) }}</strong></td>
                     <td>
-                        <a href="{{ route('invoices.show', $invoice) }}" class="btn btn-sm btn-outline-info" title="View">
-                            <i class="bi bi-eye"></i>
+                        <a href="{{ route('invoices.show', $invoice) }}" class="action-btn bg-warning me-1" title="View">
+                            <i class="bi bi-eye-fill text-white" style="font-size: 0.8rem;"></i>
                         </a>
-                        <a href="{{ route('invoices.pdf', $invoice) }}" class="btn btn-sm btn-outline-danger" title="Download PDF">
-                            <i class="bi bi-file-pdf"></i>
+                        <a href="{{ route('invoices.edit', $invoice) }}" class="action-btn bg-info me-1" title="Edit">
+                            <i class="bi bi-pencil-fill text-white" style="font-size: 0.8rem;"></i>
                         </a>
-                        <a href="{{ route('invoices.print', $invoice) }}" class="btn btn-sm btn-outline-secondary" title="Print" target="_blank">
-                            <i class="bi bi-printer"></i>
+                        <a href="{{ route('invoices.pdf', $invoice) }}" class="action-btn bg-danger me-1" title="Download PDF">
+                            <i class="bi bi-file-pdf-fill text-white" style="font-size: 0.8rem;"></i>
                         </a>
+                        <a href="{{ route('invoices.print', $invoice) }}" class="action-btn bg-primary me-1" title="Print" target="_blank">
+                            <i class="bi bi-printer-fill text-white" style="font-size: 0.8rem;"></i>
+                        </a>
+                        <form action="{{ route('invoices.destroy', $invoice) }}" method="POST" class="d-inline" 
+                              onsubmit="return confirm('Are you sure you want to delete this invoice?');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="action-btn bg-danger" title="Delete">
+                                <i class="bi bi-trash-fill text-white" style="font-size: 0.8rem;"></i>
+                            </button>
+                        </form>
                     </td>
                 </tr>
                 @empty

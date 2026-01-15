@@ -12,6 +12,10 @@ class CompanySelectionController extends Controller
      */
     public function select()
     {
+        if (auth()->user()->hasRole('driver')) {
+            return redirect()->route('driver.dashboard');
+        }
+
         $companies = Company::orderBy('name')->get();
         return view('companies.select', compact('companies'));
     }
@@ -25,7 +29,12 @@ class CompanySelectionController extends Controller
             'company_id' => ['required', 'exists:companies,id'],
         ]);
 
-        session(['selected_company_id' => $request->company_id]);
+        $company = Company::findOrFail($request->company_id);
+        
+        session([
+            'selected_company_id' => $company->id,
+            'company_name' => $company->name
+        ]);
 
         return redirect()->route('dashboard');
     }
@@ -35,6 +44,10 @@ class CompanySelectionController extends Controller
      */
     public function switch()
     {
+        if (auth()->user()->hasRole('driver')) {
+            return redirect()->route('driver.dashboard');
+        }
+
         session()->forget('selected_company_id');
         return redirect()->route('companies.select');
     }

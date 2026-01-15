@@ -32,7 +32,7 @@ class PartyController extends Controller
               ->orWhereNull('company_id');
         });
 
-        $parties = $query->orderBy('name')->paginate(15);
+        $parties = $query->orderBy('name')->paginate(10);
 
         return view('parties.index', compact('parties'));
     }
@@ -154,5 +154,53 @@ class PartyController extends Controller
             'contact_number' => $party->contact_number,
             'gst_number' => $party->gst_number,
         ]);
+    }
+
+    /**
+     * Search parties for auto-suggestion.
+     */
+    public function search(Request $request)
+    {
+        $search = $request->get('q');
+        $companyId = $this->getCompanyId();
+
+        $parties = Party::where('company_id', $companyId)
+            ->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('address', 'like', "%{$search}%");
+            })
+            ->limit(10)
+            ->get(['id', 'name', 'address', 'gst_number', 'contact_number']);
+
+        return response()->json($parties);
+    }
+
+    /**
+     * Fetch details from GST number (AJAX).
+     */
+    public function fetchGstDetails(Request $request, \App\Services\GstService $gstService)
+    {
+        $gst = $request->get('gst_number');
+        
+        if (!$gst) {
+            return response()->json(['valid' => false, 'message' => 'GST number is required.']);
+        }
+
+        // 1. Validate Format
+        if (!$gstService->validateFormat($gst)) {
+            return response()->json(['valid' => false, 'message' => 'Invalid GST number format.']);
+        }
+
+        // 2. Fetch Details (Simulated)
+        $details = $gstService->getDetails($gst);
+
+        if ($details) {
+            return response()->json([
+                'valid' => true,
+                'data' => $details
+            ]);
+        }
+
+        return response()->json(['valid' => false, 'message' => 'GST details not found.']);
     }
 }

@@ -134,9 +134,7 @@ class Invoice extends Model
         $year = date('Y');
         $query = static::whereYear('created_at', $year);
         
-        if ($companyId) {
-            $query->where('company_id', $companyId);
-        }
+        // $query->where('company_id', $companyId); // Commented out to enforce global uniqueness
         
         $lastInvoice = $query->orderBy('id', 'desc')->first();
         

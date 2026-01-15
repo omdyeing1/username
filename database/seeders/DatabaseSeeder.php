@@ -21,9 +21,9 @@ class DatabaseSeeder extends Seeder
             'password' => bcrypt('password'),
         ]);
 
-        $this->call([
-            PartySeeder::class,
-            ChallanSeeder::class,
-        ]);
+        // $this->call([
+        //     PartySeeder::class,
+        //     ChallanSeeder::class,
+        // ]);
     }
 }

@@ -42,7 +42,15 @@ class ChallanController extends Controller
             $query->where('challan_number', 'like', "%{$request->search}%");
         }
 
-        $challans = $query->orderBy('challan_date', 'desc')->paginate(15);
+        // Filter by amount range
+        if ($request->filled('min_amount')) {
+            $query->where('subtotal', '>=', $request->min_amount);
+        }
+        if ($request->filled('max_amount')) {
+            $query->where('subtotal', '<=', $request->max_amount);
+        }
+
+        $challans = $query->orderBy('challan_date', 'desc')->paginate(10);
         $parties = Party::where('company_id', $companyId)->orderBy('name')->get();
 
         return view('challans.index', compact('challans', 'parties'));
@@ -233,18 +241,52 @@ class ChallanController extends Controller
     /**
      * Get challans for a specific party (AJAX endpoint).
      */
-    public function getByParty(Party $party)
+    public function getByParty(Request $request, Party $party)
     {
         // Ensure party belongs to current company
         if ($party->company_id != $this->getCompanyId()) {
             abort(404);
         }
 
+        $companyId = $this->getCompanyId();
+        // Get current invoice ID from request to exclude it from "already invoiced" check
+        $currentInvoiceId = $request->query('current_invoice_id');
+
         $challans = $party->challans()
-            ->where('company_id', $this->getCompanyId())
-            ->with('items')
+            ->where(function($q) use ($companyId) {
+                $q->where('company_id', $companyId)
+                  ->orWhereNull('company_id');
+            })
+            ->with(['items', 'invoices'])
             ->orderBy('challan_date', 'desc')
             ->get()
+            ->filter(function ($challan) use ($currentInvoiceId) {
+                // 1. If we are editing an invoice, always show challans belonging to THIS invoice
+                if ($currentInvoiceId) {
+                    $belongsToCurrent = $challan->invoices->contains('id', $currentInvoiceId);
+                    if ($belongsToCurrent) {
+                        return true;
+                    }
+                }
+
+                // 2. Check if attached to any OTHER invoice
+                // We use the relationship count as the source of truth instead of is_invoiced flag
+                $lastInvoice = $challan->invoices()->latest('updated_at')->first();
+                
+                // If no invoice attached, shows it
+                if (!$lastInvoice) {
+                    return true;
+                }
+                
+                // If attached, check if edited significantly AFTER the invoice was created
+                // We reduce the buffer to 1 second to catch updates that happen after invoicing
+                if ($challan->updated_at > $lastInvoice->updated_at->copy()->addSeconds(1)) {
+                    return true;
+                }
+                
+                return false;
+            })
+            ->values() // Reset keys after filter
             ->map(function ($challan) {
                 return [
                     'id' => $challan->id,

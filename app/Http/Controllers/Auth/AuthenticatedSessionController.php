@@ -28,6 +28,29 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        $user = Auth::user();
+        if ($user->hasRole('driver')) {
+            if ($user->company_id) {
+                $company = \App\Models\Company::find($user->company_id);
+                if ($company) {
+                    session([
+                        'selected_company_id' => $company->id,
+                        'company_name' => $company->name
+                    ]);
+                    return redirect()->route('driver.dashboard');
+                }
+            }
+            // Fallback if no company assigned (should not happen based on requirements)
+            Auth::logout();
+            return redirect()->route('login')->withErrors(['email' => 'Driver account is not associated with any company.']);
+        }
+
+        if ($user->hasRole('employee')) {
+            Auth::logout();
+            // Generic message as requested to hide existence or specific denial
+            return redirect()->route('login')->withErrors(['email' => 'These credentials do not match our records.']);
+        }
+
         return redirect()->intended(route('dashboard', absolute: false));
     }
 

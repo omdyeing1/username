@@ -39,7 +39,15 @@ class InvoiceController extends Controller
             $query->where('invoice_number', 'like', "%{$request->search}%");
         }
 
-        $invoices = $query->orderBy('invoice_date', 'desc')->paginate(15);
+        // Filter by amount range
+        if ($request->filled('min_amount')) {
+            $query->where('final_amount', '>=', $request->min_amount);
+        }
+        if ($request->filled('max_amount')) {
+            $query->where('final_amount', '<=', $request->max_amount);
+        }
+
+        $invoices = $query->orderBy('invoice_date', 'desc')->paginate(10);
         $parties = Party::where('company_id', $companyId)->orderBy('name')->get();
 
         return view('invoices.index', compact('invoices', 'parties'));
@@ -51,7 +59,10 @@ class InvoiceController extends Controller
     public function create()
     {
         $companyId = $this->getCompanyId();
-        $parties = Party::where('company_id', $companyId)->orderBy('name')->get();
+        $parties = Party::where(function($q) use ($companyId) {
+            $q->where('company_id', $companyId)
+              ->orWhereNull('company_id');
+        })->orderBy('name')->get();
         $invoiceNumber = Invoice::generateInvoiceNumber($companyId);
 
         return view('invoices.create', compact('parties', 'invoiceNumber'));
@@ -69,7 +80,10 @@ class InvoiceController extends Controller
             // Validate that selected challans belong to the party and company (allow both invoiced and non-invoiced)
             $challans = Challan::whereIn('id', $request->challan_ids)
                 ->where('party_id', $request->party_id)
-                ->where('company_id', $companyId)
+                ->where(function($q) use ($companyId) {
+                    $q->where('company_id', $companyId)
+                      ->orWhereNull('company_id');
+                })
                 ->get();
 
             if ($challans->count() !== count($request->challan_ids)) {
@@ -78,32 +92,105 @@ class InvoiceController extends Controller
                     ->with('error', 'One or more selected challans are invalid.');
             }
 
-            // Delete old invoices that contain any of these challans
-            // If a challan is being re-invoiced, delete the old invoice(s) that contained it
-            foreach ($request->challan_ids as $challanId) {
+            // Start Logic: Check if we should update an existing invoice or create a new one
+
+            // 1. Identify which invoices the selected challans currently belong to
+            $existingInvoiceIds = [];
+             foreach ($request->challan_ids as $challanId) {
                 $challan = Challan::find($challanId);
                 if ($challan) {
-                    // Get all invoices containing this challan
-                    $oldInvoices = $challan->invoices()->get();
-                    foreach ($oldInvoices as $oldInvoice) {
-                        // If the old invoice only contains this one challan, delete the entire invoice
-                        if ($oldInvoice->challans()->count() === 1) {
-                            $oldInvoice->challans()->detach();
-                            $oldInvoice->delete();
-                        } else {
-                            // Otherwise, just detach this challan from the old invoice
-                            $oldInvoice->challans()->detach($challanId);
-                            // Update is_invoiced status if no other invoices contain this challan
-                            if ($challan->invoices()->count() === 0) {
-                                $challan->update(['is_invoiced' => false]);
-                            }
-                        }
+                     // Get all invoices containing this challan
+                    $currentInvoices = $challan->invoices()->get();
+                    foreach ($currentInvoices as $currInvoice) {
+                        $existingInvoiceIds[$currInvoice->id] = $currInvoice->id;
                     }
                 }
             }
 
-            // Calculate subtotal from challans (server-side)
-            $subtotal = $challans->sum('subtotal');
+            $uniqueExistingInvoiceIds = array_values($existingInvoiceIds);
+            $targetInvoiceToUpdate = null;
+
+            // 2. Logic to decide: Update Existing or Create New
+            // Case A: specific existing invoice is being re-invoiced (all selected challans belong to SAME invoice, or are new)
+            // Actually, safe logic: If EXACTLY ONE existing invoice is found among linked challans, update THAT invoice.
+            // If multiple existing invoices are involved (merging), we deleting them and creating NEW (current behavior).
+            if (count($uniqueExistingInvoiceIds) === 1) {
+                $targetInvoiceToUpdate = Invoice::find($uniqueExistingInvoiceIds[0]);
+            }
+
+            if ($targetInvoiceToUpdate) {
+                // UPDATE EXISTING INVOICE
+                
+                 // Calculate subtotal from challans (server-side)
+                $subtotal = $challans->sum('subtotal');
+
+                // Calculate all amounts
+                $amounts = Invoice::calculateAmounts(
+                    $subtotal,
+                    $request->gst_percent ?? 0,
+                    $request->tds_percent ?? 0,
+                    $request->discount_type ?? 'fixed',
+                    $request->discount_value ?? 0
+                );
+                
+                // Update the invoice
+                $targetInvoiceToUpdate->update([
+                    'party_id' => $request->party_id,
+                    'invoice_date' => $request->invoice_date,
+                    'subtotal' => $amounts['subtotal'],
+                    'gst_percent' => $request->gst_percent ?? 0,
+                    'gst_amount' => $amounts['gst_amount'],
+                    'tds_percent' => $request->tds_percent ?? 0,
+                    'tds_amount' => $amounts['tds_amount'],
+                    'discount_type' => $request->discount_type ?? 'fixed',
+                    'discount_value' => $request->discount_value ?? 0,
+                    'discount_amount' => $amounts['discount_amount'],
+                    'final_amount' => $amounts['final_amount'],
+                    'notes' => $request->notes,
+                ]);
+
+                 // Sync challans (this handles adding new ones and keeping old ones)
+                $targetInvoiceToUpdate->challans()->sync($request->challan_ids);
+                
+                // Mark all these as invoiced
+                Challan::whereIn('id', $request->challan_ids)->update(['is_invoiced' => true]);
+
+                DB::commit();
+
+                return redirect()
+                    ->route('invoices.show', $targetInvoiceToUpdate)
+                    ->with('success', 'Invoice updated successfully.');
+
+            }
+
+            // DEFAULT BEHAVIOR: CREATE NEW INVOICE (and delete old ones if any)
+                
+                // Delete old invoices that contain any of these challans
+                // If a challan is being re-invoiced, delete the old invoice(s) that contained it
+                foreach ($request->challan_ids as $challanId) {
+                    $challan = Challan::find($challanId);
+                    if ($challan) {
+                        // Get all invoices containing this challan
+                        $oldInvoices = $challan->invoices()->get();
+                        foreach ($oldInvoices as $oldInvoice) {
+                            // If the old invoice only contains this one challan, delete the entire invoice
+                            if ($oldInvoice->challans()->count() === 1) {
+                                $oldInvoice->challans()->detach();
+                                $oldInvoice->delete();
+                            } else {
+                                // Otherwise, just detach this challan from the old invoice
+                                $oldInvoice->challans()->detach($challanId);
+                                // Update is_invoiced status if no other invoices contain this challan
+                                if ($challan->invoices()->count() === 0) {
+                                    $challan->update(['is_invoiced' => false]);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Calculate subtotal from challans (server-side)
+                $subtotal = $challans->sum('subtotal');
 
             // Calculate all amounts
             $amounts = Invoice::calculateAmounts(
@@ -146,9 +233,10 @@ class InvoiceController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            \Illuminate\Support\Facades\Log::error('Invoice creation failed: ' . $e->getMessage());
             return back()
                 ->withInput()
-                ->with('error', 'Failed to create invoice. Please try again.');
+                ->with('error', 'Error: ' . $e->getMessage());
         }
     }
 
@@ -162,7 +250,11 @@ class InvoiceController extends Controller
             abort(404);
         }
         $invoice->load(['party', 'challans']);
-        $parties = Party::where('company_id', $this->getCompanyId())->orderBy('name')->get();
+        $companyId = $this->getCompanyId();
+        $parties = Party::where(function($q) use ($companyId) {
+            $q->where('company_id', $companyId)
+              ->orWhereNull('company_id');
+        })->orderBy('name')->get();
         
         return view('invoices.edit', compact('invoice', 'parties'));
     }
@@ -183,7 +275,10 @@ class InvoiceController extends Controller
             // Validate that selected challans belong to the party and company
             $challans = Challan::whereIn('id', $request->challan_ids)
                 ->where('party_id', $request->party_id)
-                ->where('company_id', $companyId)
+                ->where(function($q) use ($companyId) {
+                    $q->where('company_id', $companyId)
+                      ->orWhereNull('company_id');
+                })
                 ->get();
 
             if ($challans->count() !== count($request->challan_ids)) {
@@ -348,9 +443,14 @@ class InvoiceController extends Controller
             'discount_value' => 'nullable|numeric|min:0',
         ]);
 
+        $companyId = $this->getCompanyId();
+
         // Get challans and calculate subtotal (allow both invoiced and non-invoiced)
         $challans = Challan::whereIn('id', $request->challan_ids)
-            ->where('company_id', $this->getCompanyId())
+            ->where(function($q) use ($companyId) {
+                $q->where('company_id', $companyId)
+                  ->orWhereNull('company_id');
+            })
             ->get();
 
         $subtotal = $challans->sum('subtotal');

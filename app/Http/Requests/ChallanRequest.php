@@ -34,7 +34,7 @@ class ChallanRequest extends FormRequest
             'items.*.description' => ['required', 'string', 'max:500'],
             'items.*.quantity' => ['required', 'numeric', 'min:0.001', 'max:999999.999'],
             'items.*.unit' => ['required', 'string', 'max:20'],
-            'items.*.rate' => ['required', 'numeric', 'min:0.01', 'max:99999999.99'],
+            'items.*.rate' => ['required', 'numeric', 'min:0', 'max:99999999.99'],
         ];
     }
 
@@ -56,7 +56,7 @@ class ChallanRequest extends FormRequest
             'items.*.quantity.min' => 'Quantity must be greater than 0.',
             'items.*.unit.required' => 'Unit is required.',
             'items.*.rate.required' => 'Rate is required.',
-            'items.*.rate.min' => 'Rate must be greater than 0.',
+            'items.*.rate.min' => 'Rate must be 0 or greater.',
         ];
     }
 
