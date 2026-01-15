@@ -25,6 +25,13 @@ class PartyController extends Controller
             });
         }
 
+        // Filter by company_id (allow current company or null for old data)
+        $companyId = $this->getCompanyId();
+        $query->where(function($q) use ($companyId) {
+            $q->where('company_id', $companyId)
+              ->orWhereNull('company_id');
+        });
+
         $parties = $query->orderBy('name')->paginate(15);
 
         return view('parties.index', compact('parties'));
@@ -57,8 +64,8 @@ class PartyController extends Controller
      */
     public function show(Party $party)
     {
-        // Ensure party belongs to current company
-        if ($party->company_id != $this->getCompanyId()) {
+        // Ensure party belongs to current company or has no company
+        if ($party->company_id && $party->company_id != $this->getCompanyId()) {
             abort(404);
         }
 
@@ -76,8 +83,8 @@ class PartyController extends Controller
      */
     public function edit(Party $party)
     {
-        // Ensure party belongs to current company
-        if ($party->company_id != $this->getCompanyId()) {
+        // Ensure party belongs to current company or has no company
+        if ($party->company_id && $party->company_id != $this->getCompanyId()) {
             abort(404);
         }
         return view('parties.edit', compact('party'));
@@ -88,11 +95,18 @@ class PartyController extends Controller
      */
     public function update(PartyRequest $request, Party $party)
     {
-        // Ensure party belongs to current company
-        if ($party->company_id != $this->getCompanyId()) {
+        // Ensure party belongs to current company or has no company
+        if ($party->company_id && $party->company_id != $this->getCompanyId()) {
             abort(404);
         }
-        $party->update($request->validated());
+        
+        // If party had no company_id, assign it to current company on update
+        $data = $request->validated();
+        if (!$party->company_id) {
+            $data['company_id'] = $this->getCompanyId();
+        }
+        
+        $party->update($data);
 
         return redirect()
             ->route('parties.index')
@@ -104,8 +118,8 @@ class PartyController extends Controller
      */
     public function destroy(Party $party)
     {
-        // Ensure party belongs to current company
-        if ($party->company_id != $this->getCompanyId()) {
+        // Ensure party belongs to current company or has no company
+        if ($party->company_id && $party->company_id != $this->getCompanyId()) {
             abort(404);
         }
 
@@ -128,8 +142,8 @@ class PartyController extends Controller
      */
     public function getDetails(Party $party)
     {
-        // Ensure party belongs to current company
-        if ($party->company_id != $this->getCompanyId()) {
+        // Ensure party belongs to current company or has no company
+        if ($party->company_id && $party->company_id != $this->getCompanyId()) {
             abort(404);
         }
 

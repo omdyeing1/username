@@ -224,8 +224,8 @@
                     @if($invoice->party->gst_number)
                     <div>GSTI No. {{ $invoice->party->gst_number }}</div>
                     @endif
-                    @if($invoice->party->gst_number)
-                    <div>State Code: {{ substr($invoice->party->gst_number, 0, 2) ?? '' }}-{{ substr($invoice->party->gst_number, 2, 2) ?? '' }}</div>
+                    @if($invoice->party->gst_number && strlen($invoice->party->gst_number) >= 4)
+                    <div>State Code: {{ substr($invoice->party->gst_number, 0, 2) }}-{{ substr($invoice->party->gst_number, 2, 2) }}</div>
                     @endif
                 </td>
                 <td class="invoice-section">

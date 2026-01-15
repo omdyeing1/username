@@ -32,7 +32,7 @@
                     </td>
                     <td>{{ $company->gst_number ?: '-' }}</td>
                     <td>{{ $company->state_code ?: '-' }}</td>
-                    <td>{{ Str::limit($company->address, 50) }}</td>
+                    <td>{{ \Illuminate\Support\Str::limit($company->address, 50) }}</td>
                     <td>
                         @if($company->is_default)
                             <span class="badge bg-success">Default</span>
