@@ -128,24 +128,51 @@ class Invoice extends Model
     /**
      * Generate a unique invoice number.
      */
+    /**
+     * Generate a unique invoice number based on Financial Year.
+     * Format: INV<FY_START_YEAR>001
+     */
     public static function generateInvoiceNumber(?int $companyId = null): string
     {
         $prefix = 'INV';
-        $year = date('Y');
-        $query = static::whereYear('created_at', $year);
         
-        // $query->where('company_id', $companyId); // Commented out to enforce global uniqueness
+        // Calculate Financial Year
+        // If current month is Jan(1), Feb(2), Mar(3), then FY started in previous year.
+        // If current month is >= April(4), then FY started in current year.
+        $currentMonth = (int) date('m');
+        $currentYear = (int) date('Y');
         
-        $lastInvoice = $query->orderBy('id', 'desc')->first();
-        
-        if ($lastInvoice) {
-            $lastNumber = (int) substr($lastInvoice->invoice_number, -6);
-            $newNumber = $lastNumber + 1;
+        if ($currentMonth < 4) {
+            $fyStartYear = $currentYear - 1;
         } else {
-            $newNumber = 1;
+            $fyStartYear = $currentYear;
         }
         
-        return $prefix . $year . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
+        // Define FY Date Range for querying
+        $fyStartDate = "{$fyStartYear}-04-01 00:00:00";
+        $fyEndDate = ($fyStartYear + 1) . "-03-31 23:59:59";
+        
+        $query = static::whereBetween('invoice_date', [$fyStartDate, $fyEndDate]);
+        
+        if ($companyId) {
+             $query->where('company_id', $companyId);
+        }
+        
+        // Get last invoice of this FY
+        $lastInvoice = $query->orderBy('invoice_number', 'desc')->first();
+        
+        if ($lastInvoice) {
+            // Extract sequence from format INV<YEAR><SEQUENCE> (e.g., INV2025001)
+            // Length of "INV" + "2025" is 3+4=7 characters.
+            // Remaining part is sequence.
+            $lastSequence = (int) substr($lastInvoice->invoice_number, 7);
+            $newSequence = $lastSequence + 1;
+        } else {
+            $newSequence = 1;
+        }
+        
+        // Padded to 3 digits as requested (001)
+        return $prefix . $fyStartYear . str_pad($newSequence, 3, '0', STR_PAD_LEFT);
     }
 
     /**
